@@ -22,28 +22,33 @@ server.use(cors());
 
 // request url (browser): localhost:3030/
 // req: carries all the parameters in the header
-server.get('/',(req,res)=>{
+server.get('/', (req, res) => {
     res.send('you server is working')
 })
 
 // request url (browser): localhost:3030/location
-server.get('/location',(req,res)=>{
+server.get('/location', (req, res) => {
     // res.send('location route')
     // fetch the data from geo.json file
     let geoData = require('./data/location.json');
     // console.log(geoData);
-    let locationData = new Location (geoData);
+    let locationData = new Location(geoData);
     // console.log(locationData);
     res.send(locationData);
 })
 
-server.get('/weather',(req,res)=>{
+server.get('/weather', (req, res) => {
     // res.send('location route')
     // fetch the data from geo.json file
-    let geoData = require('./data/wethier.json');
-    // console.log(geoData);
-    let weatherData = new Weather (geoData);
-    // console.log(locationData);
+    let requiredData = require('./data/wethier.json');
+
+    const arrWeather = [];
+
+    weatherData.data.forEach(location =>{
+      let newWeather = new Weather (requiredData,location);
+      arrWeather.push(newWeather);
+    });
+        // console.log(locationData);
     res.send(weatherData);
 })
 
@@ -57,15 +62,22 @@ function Location(locData) {
     //   }
     // console.log(locData);
     this.search_query = 'Lynwood';
-    this.formatted_query =  locData[0].display_name;
+    this.formatted_query = locData[0].display_name;
     this.latitude = locData[0].lat;
     this.longitude = locData[0].lon;
     // this.cityName = locData[0].display_name;
 }
 
+//weather constructor
+function Weather(city,weathObj) {
+    this.search_qury = city;
+    this.forecast = weathObj.weather['description'];
+    this.time = weathObj.datetime;
+  }
+
 //any route
 //location:3030/ddddddd
-server.get('*',(req,res)=>{
+server.get('*', (req, res) => {
     // res.status(404).send('wrong route')
     // {
     //     status: 500,
@@ -79,6 +91,11 @@ server.get('*',(req,res)=>{
     res.status(500).send(errObj);
 })
 
-server.listen(PORT,()=>{
+server.listen(PORT, () => {
     console.log(`Listening on PORT ${PORT}`)
 })
+
+function errorHandler(err, request, response, next) {
+    response.status(500).send('something is wrong in server');
+}
+app.use(errorHandler);
