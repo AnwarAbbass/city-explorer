@@ -37,6 +37,11 @@ server.get('/location', (req, res) => {
     res.send(locationData);
 })
 
+// function errorHandler(err, request, response, next) {
+//     response.status(500).send('something is wrong in server');
+// }
+// express.use(errorHandler);
+
 server.get('/weather', (req, res) => {
     // res.send('location route')
     // fetch the data from geo.json file
@@ -44,11 +49,11 @@ server.get('/weather', (req, res) => {
 
     const arrWeather = [];
 
-    weatherData.data.forEach(location =>{
-      let newWeather = new Weather (requiredData,location);
-      arrWeather.push(newWeather);
+    weatherData.data.forEach(location => {
+        let newWeather = new Weather(requiredData, location);
+        arrWeather.push(newWeather);
     });
-        // console.log(locationData);
+    // console.log(locationData);
     res.send(weatherData);
 })
 
@@ -69,11 +74,11 @@ function Location(locData) {
 }
 
 //weather constructor
-function Weather(city,weathObj) {
+function Weather(city, weathObj) {
     this.search_qury = city;
     this.forecast = weathObj.weather['description'];
     this.time = weathObj.datetime;
-  }
+}
 
 //any route
 //location:3030/ddddddd
@@ -94,8 +99,3 @@ server.get('*', (req, res) => {
 server.listen(PORT, () => {
     console.log(`Listening on PORT ${PORT}`)
 })
-
-function errorHandler(err, request, response, next) {
-    response.status(500).send('something is wrong in server');
-}
-app.use(errorHandler);
