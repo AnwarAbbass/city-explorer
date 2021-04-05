@@ -37,35 +37,21 @@ server.get('/location', (req, res) => {
     res.send(locationData);
 })
 
-// function errorHandler(err, request, response, next) {
-//     response.status(500).send('something is wrong in server');
-// }
-// express.use(errorHandler);
 
 server.get('/weather', (req, res) => {
-    // res.send('location route')
-    // fetch the data from geo.json file
-    let requiredData = require('./data/wethier.json');
+  const searchQWeather = req.query.city;
+  const weatherData = require('./data/weather.json');
 
-    const arrWeather = [];
+  const arrWeather = [];
 
-    weatherData.data.forEach(location => {
-        let newWeather = new Weather(requiredData, location);
-        arrWeather.push(newWeather);
-    });
-    // console.log(locationData);
-    res.send(weatherData);
+  weatherData.data.forEach(element =>{
+    let newWeather = new Weather (element);
+    arrWeather.push(newWeather);
+  });
+  res.send(arrWeather);
 })
 
 function Location(locData) {
-
-    // {
-    //     "search_query": "seattle",
-    //     "formatted_query": "Seattle, WA, USA",
-    //     "latitude": "47.606210",
-    //     "longitude": "-122.332071"
-    //   }
-    // console.log(locData);
     this.search_query = 'Lynwood';
     this.formatted_query = locData[0].display_name;
     this.latitude = locData[0].lat;
@@ -74,21 +60,13 @@ function Location(locData) {
 }
 
 //weather constructor
-function Weather(city, weathObj) {
-    this.search_qury = city;
+function Weather( weathObj) {
     this.forecast = weathObj.weather['description'];
     this.time = weathObj.datetime;
 }
 
-//any route
-//location:3030/ddddddd
+
 server.get('*', (req, res) => {
-    // res.status(404).send('wrong route')
-    // {
-    //     status: 500,
-    //     responseText: "Sorry, something went wrong",
-    //     ...
-    //   }
     let errObj = {
         status: 500,
         responseText: "Sorry, something went wrong"
