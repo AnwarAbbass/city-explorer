@@ -1,79 +1,122 @@
 // npm start >>> node server.js >> nodemon (sudo npm i -g nodemon)
 'use strict';
 
-const express = require('express'); // npm i express
-require('dotenv').config(); // npm i dotenv
-// CORS: Cross Origin Resource Sharing -> for giving the permission for who(clients) can touch my server oe send requests to my server
-const cors = require('cors'); // npm i cors
+require('dotenv').config();
 
-const server = express();
+let key;
+let LocURL;
 
-const PORT = process.env.PORT || 5000;
-//PORT = .env
-//PORT = 5000
-//PORT = Heroku PORT
+// Application Dependencies
+const express = require('express');
+//CORS = Cross Origin Resource Sharing
+const cors = require('cors');
+// client-side HTTP request library
+const superagent = require('superagent');
 
-// make my server open to any client
-server.use(cors());
-
-// console.log(process);
+// Application Setup
+const PORT = process.env.PORT || 3030;
+const app = express();
+app.use(cors());
 
 //Routes
+app.get('/', handlerHome);
+app.get('/location', handlerLocation);
+app.get('/weather', handlerWeather);
+app.get('/parks', handlerParks);
+app.get('*', handlerWrong);
 
-// request url (browser): localhost:3030/
-// req: carries all the parameters in the header
-server.get('/', (req, res) => {
+// handler function
+function handlerHome(req, res) {
     res.send('you server is working')
-})
-
-// request url (browser): localhost:3030/location
-server.get('/location', (req, res) => {
-    // res.send('location route')
-    // fetch the data from geo.json file
-    let geoData = require('./data/location.json');
-    // console.log(geoData);
-    let locationData = new Location(geoData);
-    // console.log(locationData);
-    res.send(locationData);
-})
-
-
-server.get('/weather', (req, res) => {
-  const searchQWeather = req.query.city;
-  const weatherData = require('./data/weather.json');
-
-  const arrWeather = [];
-
-  weatherData.data.forEach(element =>{
-    let newWeather = new Weather (element);
-    arrWeather.push(newWeather);
-  });
-  res.send(arrWeather);
-})
-
-function Location(locData) {
-    this.search_query = 'Lynwood';
-    this.formatted_query = locData[0].display_name;
-    this.latitude = locData[0].lat;
-    this.longitude = locData[0].lon;
-    // this.cityName = locData[0].display_name;
 }
 
-//weather constructor
-function Weather( weathObj) {
-    this.forecast = weathObj.weather['description'];
-    this.time = weathObj.datetime;
+function handlerLocation(req, res) {
+    let cityName = req.query.city;
+    key = process.env.GEOCODE_API_KEY;
+
+    LocURL = `https://eu1.locationiq.com/v1/search.php?key=${key}&q=${cityName}&format=json`;
+    superagent.get(LocURL) //send request to LocationIQ API
+        .then(data => {
+            let body = data.body
+            console.log(body);
+            let locationData = new Location(cityName, body);
+            res.send(locationData);
+        })
+        .catch(error => {
+            res.send(error);
+        })
 }
 
 
-server.get('*', (req, res) => {
+function handlerWeather(req, res) {
+    const city = req.query.city;
+
+    key = process.env.WEATHER_API_KEY;
+    LocURL = `https://api.weatherbit.io/v2.0/forecast/daily?city=${city}&key=${key}`
+
+    superagent.get(LocURL) //send request to LocationIQ API
+        .then(data => {
+            let body = data.body
+            const arrWeather = body.data.map((element) => {
+                let newWeather = new Weather(element);
+                return newWeather;
+            });
+            res.send(arrWeather);
+        })
+        .catch(error => {
+            res.send(error);
+        })
+}
+
+function handlerParks(req, res) {
+
+    console.log('in parks')
+
+    key = process.env.PARKS_API_KEY;
+    let city = req.query.city;
+    console.log(city);
+    LocURL = `https://developer.nps.gov/api/v1/parks?q=${city}&limit=10&api_key=${key}`;
+    superagent.get(LocURL)
+        .then(element => {
+            let body = element.body.data
+            let newPark = body.map(parkData => new Park(parkData));
+            // console.log(newPark[0].fee);
+            res.status(200).send(newPark);
+        })
+        .catch((error) => {
+            res.status(500).send(error);
+        });
+}
+
+function handlerWrong(req, res) {
     let errObj = {
         status: 500,
         responseText: "Sorry, something went wrong"
     }
     res.status(500).send(errObj);
-})
+}
 
-server.listen(PORT, () => {
+//constructor
+function Location(city, locData) {
+    this.search_query = city;
+    this.formatted_query = locData[0].display_name;
+    this.latitude = locData[0].lat;
+    this.longitude = locData[0].lon;
+}
+
+function Weather(weathObj) {
+    this.forecast = weathObj.weather['description'];
+    this.time = weathObj.datetime;
+}
+
+function Park(parkData) {
+    this.name = parkData.fullName;
+    this.address = Object.values(parkData.addresses[0]).join(',');
+    this.fee = '0.00';
+    this.description = parkData.description;
+    this.url = parkData.url;
+}
+
+app.listen(PORT, () => {
     console.log(`Listening on PORT ${PORT}`)
-})
+});
