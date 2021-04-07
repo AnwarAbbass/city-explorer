@@ -1,4 +1,3 @@
-// npm start >>> node server.js >> nodemon (sudo npm i -g nodemon)
 'use strict';
 
 require('dotenv').config();
