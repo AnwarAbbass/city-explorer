@@ -17,7 +17,7 @@ const superagent = require('superagent');
 // Application Setup
 const PORT = process.env.PORT || 3030;
 const app = express();
-const client = new pg.Client({ connectionString: process.env.DATABASE_URL, ssl: { rejectUnauthorized: false } });
+const client = new pg.Client (process.env.DATABASE_URL);
 
 
 client.on('error', err => {
@@ -45,13 +45,14 @@ function handlerLocation(req, res) {
 
     const sqlTable = 'SELECT * FROM locations WHERE search_query=$1;';
 
-    client.query(sqlTable, [city]).then(locationData => {
+    client.query(sqlTable, [cityName]).then(locationData => {
         if (locationData.rows.length === 0) {
 
             LocURL = `https://eu1.locationiq.com/v1/search.php?key=${key}&q=${cityName}&format=json`;
             superagent.get(LocURL) //send request to LocationIQ API
                 .then(data => {
-                    let newLocation = new Location(search_query, data.body[0]);
+                    console.log(data.body[0]);
+                    let newLocation = new Location(cityName, data.body[0]);
                     const sql = 'INSERT INTO locations (search_query,formatted_query,latitude,longitude) VALUES ($1,$2,$3,$4) ';
                     const safeValues = [newLocation.search_query, newLocation.formatted_query, newLocation.latitude, newLocation.longitude];
                     client.query(sql, safeValues).then(result => {
@@ -122,9 +123,9 @@ function handlerWrong(req, res) {
 //constructor
 function Location(city, locData) {
     this.search_query = city;
-    this.formatted_query = locData[0].display_name;
-    this.latitude = locData[0].lat;
-    this.longitude = locData[0].lon;
+    this.formatted_query = locData.display_name;
+    this.latitude = locData.lat;
+    this.longitude = locData.lon;
 }
 
 function Weather(weathObj) {
