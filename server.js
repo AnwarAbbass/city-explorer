@@ -17,7 +17,7 @@ const superagent = require('superagent');
 // Application Setup
 const PORT = process.env.PORT || 3030;
 const app = express();
-const client = new pg.Client({ connectionString: process.env.DATABASE_URL,   ssl: { rejectUnauthorized: false } });
+const client = new pg.Client({ connectionString: process.env.DATABASE_URL/*,   ssl: { rejectUnauthorized: false }*/ });
 
 
 client.on('error', err => {
@@ -32,6 +32,9 @@ app.get('/', handlerHome);
 app.get('/location', handlerLocation);
 app.get('/weather', handlerWeather);
 app.get('/parks', handlerParks);
+app.get('/movie', handlerMovie);
+app.get('/yelp', handlerYelp);
+
 app.get('*', handlerWrong);
 
 // handler function
@@ -51,12 +54,12 @@ function handlerLocation(req, res) {
             LocURL = `https://eu1.locationiq.com/v1/search.php?key=${key}&q=${cityName}&format=json`;
             superagent.get(LocURL) //send request to LocationIQ API
                 .then(data => {
-                    console.log(data.body[0]);
+                    // console.log(data.body[0]);
                     let newLocation = new Location(cityName, data.body[0]);
                     const sql = 'INSERT INTO locations (search_query,formatted_query,latitude,longitude) VALUES ($1,$2,$3,$4) ';
                     const safeValues = [newLocation.search_query, newLocation.formatted_query, newLocation.latitude, newLocation.longitude];
                     client.query(sql, safeValues).then(result => {
-                        console.log(result);
+                        // console.log(result);
                     });
                     res.status(200).send(newLocation);
 
@@ -94,11 +97,11 @@ function handlerWeather(req, res) {
 
 function handlerParks(req, res) {
 
-    console.log('in parks')
+    // console.log('in parks')
 
     key = process.env.PARKS_API_KEY;
     let city = req.query.city;
-    console.log(city);
+    // console.log(city);
     LocURL = `https://developer.nps.gov/api/v1/parks?q=${city}&limit=10&api_key=${key}`;
     superagent.get(LocURL)
         .then(element => {
@@ -110,6 +113,38 @@ function handlerParks(req, res) {
         .catch((error) => {
             res.status(500).send(error);
         });
+}
+
+function handlerMovie(req, res) {
+
+    console.log('in movie')
+
+    key = process.env.MOVIE_API_KEY;
+    let city = req.query.city;
+    console.log(city);
+    LocURL = `https://api.themoviedb.org/3/search/movie?api_key=${key}&query=${city}`;
+    superagent.get(LocURL)
+        .then(element => {
+            //     let body = element.body;
+            //     let newMov = new Movie(body);
+            //     console.log('body',newMov);
+            //     res.status(200).send(newMov);
+            // })
+
+            let body = JSON.parse( element.text.split(','));
+            let newMovie = body.results.map(data=> new Movie(data));
+            // let newMovie =  new Movie(body);
+
+            console.log(newMovie);
+            res.status(200).send(newMovie)
+        })
+        .catch((error) => {
+            res.status(500).send(error);
+        });
+}
+
+function handlerYelp(req, res) {
+    console.log('in yelp');
 }
 
 function handlerWrong(req, res) {
@@ -141,6 +176,20 @@ function Park(parkData) {
     this.url = parkData.url;
 }
 
+function Movie(data) {
+    this.title = data.original_title;
+    this.overview = data.overview;
+    this.average_votes = data.vote_average;
+    this.total_votes = data.vote_count;
+    this.image_url = `https://image.tmdb.org/t/p/w500${data.poster_path}`;
+    this.popularity = data.popularity;
+    this.released_on = data.release_date;
+    Movie.all.push(this);
+}
+
+Movie.all = [];
+
+// listen
 client.connect().then(() => {
 
     app.listen(PORT, () => {
