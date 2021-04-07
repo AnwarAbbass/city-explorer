@@ -17,7 +17,7 @@ const superagent = require('superagent');
 // Application Setup
 const PORT = process.env.PORT || 3030;
 const app = express();
-const client = new pg.Client (process.env.DATABASE_URL);
+const client = new pg.Client({ connectionString: process.env.DATABASE_URL,   ssl: { rejectUnauthorized: false } });
 
 
 client.on('error', err => {
