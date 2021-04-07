@@ -8,6 +8,7 @@ let LocURL;
 
 // Application Dependencies
 const express = require('express');
+const pg = require('pg');
 //CORS = Cross Origin Resource Sharing
 const cors = require('cors');
 // client-side HTTP request library
@@ -16,6 +17,14 @@ const superagent = require('superagent');
 // Application Setup
 const PORT = process.env.PORT || 3030;
 const app = express();
+const client = new pg.Client({ connectionString: process.env.DATABASE_URL,   ssl: { rejectUnauthorized: false } });
+
+
+client.on('error', err => {
+    console.log('unable to connect database');
+});
+
+
 app.use(cors());
 
 //Routes
@@ -34,17 +43,32 @@ function handlerLocation(req, res) {
     let cityName = req.query.city;
     key = process.env.GEOCODE_API_KEY;
 
-    LocURL = `https://eu1.locationiq.com/v1/search.php?key=${key}&q=${cityName}&format=json`;
-    superagent.get(LocURL) //send request to LocationIQ API
-        .then(data => {
-            let body = data.body
-            console.log(body);
-            let locationData = new Location(cityName, body);
-            res.send(locationData);
-        })
-        .catch(error => {
-            res.send(error);
-        })
+    const sqlTable = 'SELECT * FROM locations WHERE search_query=$1;';
+
+    client.query(sqlTable, [cityName]).then(locationData => {
+        if (locationData.rows.length === 0) {
+
+            LocURL = `https://eu1.locationiq.com/v1/search.php?key=${key}&q=${cityName}&format=json`;
+            superagent.get(LocURL) //send request to LocationIQ API
+                .then(data => {
+                    console.log(data.body[0]);
+                    let newLocation = new Location(cityName, data.body[0]);
+                    const sql = 'INSERT INTO locations (search_query,formatted_query,latitude,longitude) VALUES ($1,$2,$3,$4) ';
+                    const safeValues = [newLocation.search_query, newLocation.formatted_query, newLocation.latitude, newLocation.longitude];
+                    client.query(sql, safeValues).then(result => {
+                        console.log(result);
+                    });
+                    res.status(200).send(newLocation);
+
+                })
+                .catch((error) => {
+                    res.status(500).send(`something ${error}`);
+                });
+        } else {
+            const loc = locationData.rows[0];
+            res.status(200).send(loc);
+        }
+    });
 }
 
 
@@ -57,11 +81,11 @@ function handlerWeather(req, res) {
     superagent.get(LocURL) //send request to LocationIQ API
         .then(data => {
             let body = data.body
-            const arrWeather = body.data.map((element) => {
+            const newLocationWeather = body.data.map((element) => {
                 let newWeather = new Weather(element);
                 return newWeather;
             });
-            res.send(arrWeather);
+            res.send(newLocationWeather);
         })
         .catch(error => {
             res.send(error);
@@ -99,9 +123,9 @@ function handlerWrong(req, res) {
 //constructor
 function Location(city, locData) {
     this.search_query = city;
-    this.formatted_query = locData[0].display_name;
-    this.latitude = locData[0].lat;
-    this.longitude = locData[0].lon;
+    this.formatted_query = locData.display_name;
+    this.latitude = locData.lat;
+    this.longitude = locData.lon;
 }
 
 function Weather(weathObj) {
@@ -117,6 +141,10 @@ function Park(parkData) {
     this.url = parkData.url;
 }
 
-app.listen(PORT, () => {
-    console.log(`Listening on PORT ${PORT}`)
-});
+client.connect().then(() => {
+
+    app.listen(PORT, () => {
+        console.log(`Listening on PORT ${PORT}`)
+    });
+
+})
