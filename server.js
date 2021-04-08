@@ -4,7 +4,8 @@
 require('dotenv').config();
 
 let key;
-let LocURL;
+let URL;
+let city;
 
 // Application Dependencies
 const express = require('express');
@@ -43,19 +44,19 @@ function handlerHome(req, res) {
 }
 
 function handlerLocation(req, res) {
-    let cityName = req.query.city;
+    let city = req.query.city;
     key = process.env.GEOCODE_API_KEY;
 
     const sqlTable = 'SELECT * FROM locations WHERE search_query=$1;';
 
-    client.query(sqlTable, [cityName]).then(locationData => {
+    client.query(sqlTable, [city]).then(locationData => {
         if (locationData.rows.length === 0) {
 
-            LocURL = `https://eu1.locationiq.com/v1/search.php?key=${key}&q=${cityName}&format=json`;
-            superagent.get(LocURL) //send request to LocationIQ API
+            URL = `https://eu1.locationiq.com/v1/search.php?key=${key}&q=${city}&format=json`;
+            superagent.get(URL) //send request to LocationIQ API
                 .then(data => {
                     // console.log(data.body[0]);
-                    let newLocation = new Location(cityName, data.body[0]);
+                    let newLocation = new Location(city, data.body[0]);
                     const sql = 'INSERT INTO locations (search_query,formatted_query,latitude,longitude) VALUES ($1,$2,$3,$4) ';
                     const safeValues = [newLocation.search_query, newLocation.formatted_query, newLocation.latitude, newLocation.longitude];
                     client.query(sql, safeValues).then(result => {
@@ -76,12 +77,12 @@ function handlerLocation(req, res) {
 
 
 function handlerWeather(req, res) {
-    const city = req.query.city;
+     city = req.query.city;
 
     key = process.env.WEATHER_API_KEY;
-    LocURL = `https://api.weatherbit.io/v2.0/forecast/daily?city=${city}&key=${key}`
+    URL = `https://api.weatherbit.io/v2.0/forecast/daily?city=${city}&key=${key}`
 
-    superagent.get(LocURL) //send request to LocationIQ API
+    superagent.get(URL) //send request to LocationIQ API
         .then(data => {
             let body = data.body
             const newLocationWeather = body.data.map((element) => {
@@ -102,8 +103,8 @@ function handlerParks(req, res) {
     key = process.env.PARKS_API_KEY;
     let city = req.query.city;
     // console.log(city);
-    LocURL = `https://developer.nps.gov/api/v1/parks?q=${city}&limit=10&api_key=${key}`;
-    superagent.get(LocURL)
+    URL = `https://developer.nps.gov/api/v1/parks?q=${city}&limit=10&api_key=${key}`;
+    superagent.get(URL)
         .then(element => {
             let body = element.body.data
             let newPark = body.map(parkData => new Park(parkData));
@@ -120,10 +121,10 @@ function handlerMovie(req, res) {
     console.log('in movie')
 
     key = process.env.MOVIE_API_KEY;
-    let city = req.query.city;
+    city = req.query.city;
     console.log(city);
-    LocURL = `https://api.themoviedb.org/3/search/movie?api_key=${key}&query=${city}`;
-    superagent.get(LocURL)
+    URL = `https://api.themoviedb.org/3/search/movie?api_key=${key}&query=${city}`;
+    superagent.get(URL)
         .then(element => {
             //     let body = element.body;
             //     let newMov = new Movie(body);
@@ -145,6 +146,24 @@ function handlerMovie(req, res) {
 
 function handlerYelp(req, res) {
     console.log('in yelp');
+    city = req.query.city;
+    let page=req.query.page;
+    key = process.env.YELP_API_KEY;
+    let starterPage= (page-1)*5
+    URL =  `https://api.yelp.com/v3/businesses/search?location=${city}&term=restaurants&limit=5&offset=${starterPage}`;
+    
+    superagent.get(URL).set('Authorization', `Bearer ${key}`)
+        .then(element => {
+            let body = element.body;
+            // console.log(body)
+            let newYelp= body.businesses.map(data => new Yelp(data))
+            res.send(newYelp);
+        })
+        .catch((error) => {
+            res.status(500).send(error);
+        });
+
+
 }
 
 function handlerWrong(req, res) {
@@ -184,10 +203,16 @@ function Movie(data) {
     this.image_url = `https://image.tmdb.org/t/p/w500${data.poster_path}`;
     this.popularity = data.popularity;
     this.released_on = data.release_date;
-    Movie.all.push(this);
 }
 
-Movie.all = [];
+function Yelp(data){
+    this.name=data.name;
+    this.image_url=data.image_url;
+    this.price=data.price;
+    this.rating=data.rating;
+    this.url=data.url;
+}
+
 
 // listen
 client.connect().then(() => {
