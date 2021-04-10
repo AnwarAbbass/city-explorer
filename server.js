@@ -18,7 +18,7 @@ const superagent = require('superagent');
 // Application Setup
 const PORT = process.env.PORT || 3030;
 const app = express();
-const client = new pg.Client({ connectionString: process.env.DATABASE_URL,   ssl: { rejectUnauthorized: false }});
+const client = new pg.Client({ connectionString: process.env.DATABASE_URL/*,   ssl: { rejectUnauthorized: false }*/});
 
 
 client.on('error', err => {
@@ -33,7 +33,7 @@ app.get('/', handlerHome);
 app.get('/location', handlerLocation);
 app.get('/weather', handlerWeather);
 app.get('/parks', handlerParks);
-app.get('/movie', handlerMovie);
+app.get('/movies', handlerMovies);
 app.get('/yelp', handlerYelp);
 
 app.get('*', handlerWrong);
@@ -77,7 +77,7 @@ function handlerLocation(req, res) {
 
 
 function handlerWeather(req, res) {
-     city = req.query.city;
+     city = req.query.search_query;
 
     key = process.env.WEATHER_API_KEY;
     URL = `https://api.weatherbit.io/v2.0/forecast/daily?city=${city}&key=${key}`
@@ -101,7 +101,7 @@ function handlerParks(req, res) {
     // console.log('in parks')
 
     key = process.env.PARKS_API_KEY;
-    let city = req.query.city;
+    let city = req.query.search_query;
     // console.log(city);
     URL = `https://developer.nps.gov/api/v1/parks?q=${city}&limit=10&api_key=${key}`;
     superagent.get(URL)
@@ -116,12 +116,12 @@ function handlerParks(req, res) {
         });
 }
 
-function handlerMovie(req, res) {
+function handlerMovies(req, res) {
 
     console.log('in movie')
 
     key = process.env.MOVIE_API_KEY;
-    city = req.query.city;
+    city = req.query.search_query;
     console.log(city);
     URL = `https://api.themoviedb.org/3/search/movie?api_key=${key}&query=${city}`;
     superagent.get(URL)
@@ -146,7 +146,7 @@ function handlerMovie(req, res) {
 
 function handlerYelp(req, res) {
     console.log('in yelp');
-    city = req.query.city;
+    city = req.query.search_query;
     let page=req.query.page;
     key = process.env.YELP_API_KEY;
     let starterPage= (page-1)*5
@@ -154,9 +154,9 @@ function handlerYelp(req, res) {
     
     superagent.get(URL).set('Authorization', `Bearer ${key}`)
         .then(element => {
-            let body = element.body;
-            // console.log(body)
-            let newYelp= body.businesses.map(data => new Yelp(data))
+            let body = element.body.businesses;
+            console.log(body)
+            let newYelp= body.map(data => new Yelp(data))
             res.send(newYelp);
         })
         .catch((error) => {
