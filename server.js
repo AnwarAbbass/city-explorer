@@ -18,7 +18,7 @@ const superagent = require('superagent');
 // Application Setup
 const PORT = process.env.PORT || 3030;
 const app = express();
-const client = new pg.Client({ connectionString: process.env.DATABASE_URL,   ssl: { rejectUnauthorized: false }});
+const client = new pg.Client({ connectionString: process.env.DATABASE_URL, ssl: { rejectUnauthorized: false } });
 
 
 client.on('error', err => {
@@ -77,7 +77,7 @@ function handlerLocation(req, res) {
 
 
 function handlerWeather(req, res) {
-     city = req.query.search_query;
+    city = req.query.search_query;
 
     key = process.env.WEATHER_API_KEY;
     URL = `https://api.weatherbit.io/v2.0/forecast/daily?city=${city}&key=${key}`
@@ -132,8 +132,8 @@ function handlerMovies(req, res) {
             //     res.status(200).send(newMov);
             // })
 
-            let body = JSON.parse( element.text.split(','));
-            let newMovie = body.results.map(data=> new Movie(data));
+            let body = JSON.parse(element.text.split(','));
+            let newMovie = body.results.map(data => new Movie(data));
             // let newMovie =  new Movie(body);
 
             console.log(newMovie);
@@ -147,16 +147,16 @@ function handlerMovies(req, res) {
 function handlerYelp(req, res) {
     console.log('in yelp');
     city = req.query.search_query;
-    let page=req.query.page;
+    let page = req.query.page;
     key = process.env.YELP_API_KEY;
-    let starterPage= (page-1)*5
-    URL =  `https://api.yelp.com/v3/businesses/search?location=${city}&term=restaurants&limit=5&offset=${starterPage}`;
-    
+    let starterPage = (page - 1) * 5
+    URL = `https://api.yelp.com/v3/businesses/search?location=${city}&term=restaurants&limit=5&offset=${starterPage}`;
+
     superagent.get(URL).set('Authorization', `Bearer ${key}`)
         .then(element => {
-            let body = element.body.businesses;
+            let body = element.body;
             console.log(body)
-            let newYelp= body.map(data => new Yelp(data))
+            let newYelp = body.businesses.map(data => new Yelp(data))
             res.send(newYelp);
         })
         .catch((error) => {
@@ -205,12 +205,12 @@ function Movie(data) {
     this.released_on = data.release_date;
 }
 
-function Yelp(data){
-    this.name=data.name;
-    this.image_url=data.image_url;
-    this.price=data.price;
-    this.rating=data.rating;
-    this.url=data.url;
+function Yelp(data) {
+    this.name = data.name;
+    this.image_url = data.image_url;
+    this.price = data.price;
+    this.rating = data.rating;
+    this.url = data.url;
 }
 
 
